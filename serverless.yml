@@ -16,9 +16,6 @@ functions:
     handler: handler.handler
     events:
       - http:
-          path: /
-          method: ANY
-      - http:
           path: groupme-callback
           method: ANY
       - http:

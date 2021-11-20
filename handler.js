@@ -2,14 +2,7 @@ const serverless = require("serverless-http");
 const express = require("express");
 const app = express();
 const SpotifyWebApi = require('spotify-web-api-node');
-const axios = require('axios');
 require('dotenv').config();
-
-app.get("/", (req, res, next) => {
-  return res.status(200).json({
-    message: "Hello from root!",
-  });
-});
 
 app.post("/groupme-callback", async (req, res, next) => {
 
@@ -39,12 +32,23 @@ app.post("/groupme-callback", async (req, res, next) => {
 
     const tracks = [...new Set(matches.map(match => {
       const removeStart = match.replace('spotify.com/track/', '');
-      const trackId = removeStart.split(' ').shift().split('&').shift().split('?').shift();
+      const trackId = removeStart
+        .split('\n').shift()
+        .split('\t').shift()
+        .split(' ').shift()
+        .split('&').shift()
+        .split('?').shift();
       return `spotify:track:${trackId}`;
     }))];
 
-    const spotifyApi = new SpotifyWebApi();
-    spotifyApi.setAccessToken(process.env.SPOTIFY_TOKEN);
+    const spotifyApi = new SpotifyWebApi({
+      clientId: process.env.SPOTIFY_CLIENT_ID,
+      clientSecret: process.env.SPOTIFY_SECRET,
+    });
+
+    spotifyApi.setRefreshToken(process.env.SPOTIFY_REFRESH_TOKEN);
+    const clientData = await spotifyApi.refreshAccessToken();
+    spotifyApi.setAccessToken(clientData.body['access_token']);
 
     // Check if playlist already includes songs
     const playlistData = await spotifyApi.getPlaylistTracks(process.env.SPOTIFY_PLAYLIST_ID, {
@@ -67,7 +71,6 @@ app.post("/groupme-callback", async (req, res, next) => {
     }
 
     const allSongs = songs.map(song => song.track.uri);
-
     
     const filteredTracks = tracks.filter(track => !allSongs.includes(track));
 
@@ -91,12 +94,6 @@ app.post("/groupme-callback", async (req, res, next) => {
     });
   }
 
-});
-
-app.get("/hello", (req, res, next) => {
-  return res.status(200).json({
-    message: "Hello from path!",
-  });
 });
 
 app.use((req, res, next) => {
